@@ -8,12 +8,17 @@ TriMesh.h
 Class for triangle meshes.
 */
 
+#include "UV.h"
+#include "Material.h"
+#include <vector>
+#include <map>
+
 #include "Vec.h"
 #include "Box.h"
 #include "Color.h"
 #include "strutil.h"
 #include <vector>
-
+#include <iostream>
 
 namespace trimesh {
 
@@ -62,6 +67,20 @@ public:
 	//
 	// Members
 	//
+
+	// custom
+	point node_translation;
+	std::vector<UV> uvs;
+    // New property for storing textures
+    struct Texture {
+        std::string uri;
+        std::vector<unsigned char> imageData;
+        int width;
+        int height;
+        int components;
+    };
+
+    std::map<int, Texture> textures;
 
 	// The basics: vertices and faces
 	::std::vector<point> vertices;
@@ -179,6 +198,24 @@ public:
 	bool write(const char *filename);
 	bool write(const ::std::string &filename);
 
+    // Method to debug print mesh info
+    void print_debug_info() const {
+        std::cout << "Number of vertices: " << vertices.size() << std::endl;
+        std::cout << "Number of uvs: " << uvs.size() << std::endl;
+        std::cout << "Number of colors: " << colors.size() << std::endl;
+        std::cout << "Number of faces: " << faces.size() << std::endl;
+        std::cout << "Number of textures: " << textures.size() << std::endl;
+
+        for (const auto& kv : textures) {
+            const int key = kv.first;
+            const Texture& tex = kv.second;  // avoid name 'texture' (clashes with CUDA)
+            std::cout << "Texture key: " << key << std::endl;
+            std::cout << "Texture URI: " << tex.uri << std::endl;
+            std::cout << "Texture size: " << tex.imageData.size() << " bytes" << std::endl;
+            std::cout << "Texture dimensions: " << tex.width << "x" << tex.height << std::endl;
+            std::cout << "Texture components: " << tex.components << std::endl;
+        }
+    }
 
 	//
 	// Useful queries
@@ -246,6 +283,8 @@ public:
 	//
 	// Debugging
 	//
+
+	
 
 	// Debugging printout, controllable by a "verbose"ness parameter
 	static int verbose;

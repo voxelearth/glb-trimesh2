@@ -17,9 +17,8 @@ Can write: PLY (triangle mesh, range grid), OFF, OBJ, RAY, SM, STL, PTS, C++, DA
 #include <map>
 
 // include draco for mesh compression
-#include "draco/draco_features.h" // Use this if the build directory is included in INCLUDES
-#include "draco/compression/decode.h" // Use this if the src directory is included in INCLUDES
-
+#include "draco/draco_features.h"
+#include "draco/compression/decode.h"
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -189,8 +188,8 @@ bool TriMesh::read_helper(const char *filename, TriMesh *mesh)
 			return false;
 		}
 	}
-	// dprintf("Reading %s... ", filename);
-	// eprintf("Reading %s... ", filename);
+	dprintf("Reading %s... ", filename);
+	eprintf("Reading %s... ", filename);
 
     // Add GLTF handling
     if (ends_with(filename, ".gltf") || ends_with(filename, ".glb")) {
@@ -283,7 +282,7 @@ out:
 		return false;
 	}
 
-	// dprintf("Done.\n");
+	dprintf("Done.\n");
 	check_ind_range(mesh);
 	return true;
 }
@@ -483,26 +482,10 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
         return false;
     }
 
-    // std::cerr << "GLTF file loaded successfully: " << filename << std::endl;
-
-    // Retrieve the translation from the first node (assuming a single node per file)
-    point node_translation(0.0f, 0.0f, 0.0f);
-    if (!model.nodes.empty() && !model.nodes[0].translation.empty()) {
-        node_translation = point(
-            static_cast<float>(model.nodes[0].translation[0]),
-            static_cast<float>(model.nodes[0].translation[1]),
-            static_cast<float>(model.nodes[0].translation[2])
-        );
-    }
-
-	// std::cerr << "Node translation: (" << node_translation[0] << ", " 
-	// 		<< node_translation[1] << ", " << node_translation[2] << ")" << std::endl;
-
-    // Store node translation in mesh
-    mesh->node_translation = node_translation;
+    std::cerr << "GLTF file loaded successfully: " << filename << std::endl;
 
     for (const auto &gltfMesh : model.meshes) {
-        // std::cerr << "Processing mesh: " << gltfMesh.name << std::endl;
+        std::cerr << "Processing mesh: " << gltfMesh.name << std::endl;
         for (const auto &primitive : gltfMesh.primitives) {
             std::vector<point> temp_vertices;
             std::vector<UV> temp_uvs;
@@ -511,9 +494,7 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
 
             // Handle Draco compressed mesh
             if (primitive.extensions.find("KHR_draco_mesh_compression") != primitive.extensions.end()) {
-                // std::cerr << "Draco mesh detected. " << std::endl;
-
-				const auto &draco_extension = primitive.extensions.at("KHR_draco_mesh_compression");
+                const auto &draco_extension = primitive.extensions.at("KHR_draco_mesh_compression");
                 int bufferViewIndex = draco_extension.Get("bufferView").Get<int>();
                 const tinygltf::BufferView &bufferView = model.bufferViews[bufferViewIndex];
                 const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
@@ -524,7 +505,7 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
                 std::unique_ptr<draco::Mesh> draco_mesh = decoder.DecodeMeshFromBuffer(&decoder_buffer).value();
 
                 if (draco_mesh == nullptr) {
-                    // std::cerr << "Failed to decode Draco mesh." << std::endl;
+                    std::cerr << "Failed to decode Draco mesh." << std::endl;
                     return false;
                 }
 
@@ -534,7 +515,7 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
                     const draco::AttributeValueIndex val_index = pos_att->mapped_index(v);
                     float pos[3];
                     pos_att->GetValue(val_index, &pos[0]);
-                    temp_vertices.push_back(point(pos[0] + node_translation[0], pos[1] + node_translation[1], pos[2] + node_translation[2]));
+                    temp_vertices.push_back(point(pos[0], pos[1], pos[2]));
                 }
 
                 // Extract texture coordinates
@@ -569,7 +550,6 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
                     temp_faces.push_back(TriMesh::Face(face[0].value(), face[1].value(), face[2].value()));
                 }
             } else {
-				// std::cerr << "Non-draco mesh detected. " << std::endl;
                 // Handle uncompressed mesh
                 // Position
                 if (primitive.attributes.find("POSITION") != primitive.attributes.end()) {
@@ -641,8 +621,8 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
             }
 
             // Debug print the number of vertices and faces read for this object
-            // std::cerr << "Number of vertices in current object: " << temp_vertices.size() << std::endl;
-            // std::cerr << "Number of faces in current object: " << temp_faces.size() << std::endl;
+            std::cerr << "Number of vertices in current object: " << temp_vertices.size() << std::endl;
+            std::cerr << "Number of faces in current object: " << temp_faces.size() << std::endl;
 
             // Assign collected data to the mesh
             size_t vertex_start_index = mesh->vertices.size();
@@ -668,16 +648,15 @@ bool read_gltf(const char *filename, TriMesh *mesh) {
         mesh->textures[texture_index] = texture;
     }
 
-	// Uncomment below to debug the model
-
     // Save the model to a GLB file
-    // save_gltf("output.glb", mesh);
-    // Write to obj
-    // if (!mesh->write("output.obj")) {
-    //     std::cerr << "Failed to write obj file" << std::endl;
-    // }
+    save_gltf("output.glb", mesh);
 
-    // std::cerr << "GLTF file processed successfully: " << filename << std::endl;
+    // Write to obj
+    if (!mesh->write("output.obj")) {
+        std::cerr << "Failed to write obj file" << std::endl;
+    }
+
+    std::cerr << "GLTF file processed successfully: " << filename << std::endl;
     return true;
 }
 
